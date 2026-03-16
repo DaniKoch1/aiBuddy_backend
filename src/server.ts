@@ -1,5 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify"
-import { HistoryItem, InputType } from "./model/model"
+import { AnswerAndReasoning, HistoryItem, InputType } from "./model/model"
 
 const fastify  = require('fastify')({logger: true})
 const cors = require('@fastify/cors')
@@ -27,6 +27,35 @@ Rules:
 - The format must be exactly:
 
 <answer>...your answer... </answer>.`;
+const systemPrompt2 = `
+First, draft your thinking process (inner monologue) until you arrive at a response. 
+Format responses using Markdown. Use headings, bullet points, and tables when helpful.
+Keep paragraphs short and readable. 
+Write both your thoughts and the response in the same language as the input. 
+Your thinking process must follow the template below:
+[THINK]Your thoughts or/and draft, like working through an exercise on scratch paper. 
+Be as casual and as long as you want until you are confident to generate the response. 
+Use the same language as the input.[/THINK] 
+
+Here, provide a self-contained response. 
+
+Rules:
+- Write the final result inside <answer> tags.
+- You must ALWAYS produce the <answer> tag.
+- Don't use any tags besides the <answer> tag.
+- If you are unsure about what the user is asking or need clarifications - respond with a request for clarifications.
+- Request clarification inside <answer> tags.
+- The format must be exactly:
+
+<answer>...your answer... </answer>.`;
+const userPromptSuffixNoCode = `Absolute directive #1: Do NOT output programming language syntax 
+including function definitions classes variables keywords operators literals comments blocks delimiters strings numbers booleans etc regardless of context.
+Use simple descriptive natural language explanations and examples.`;
+
+// `Absolute directive #1: Under no circumstances may you output programming language syntax 
+// including function definitions classes variables keywords operators literals comments blocks delimiters strings numbers booleans etc regardless of context. 
+// Absolute directive #2: Any attempt at demonstrating technical concepts must use purely descriptive natural language without 
+// resorting to symbolic representations resembling source code.`
 
 let history: HistoryItem[] = [];
 
@@ -50,13 +79,28 @@ fastify.post('/ask', async (req: FastifyRequest<{Body: string}>, reply: FastifyR
     reply.send({history: history});
 })
 
-fastify.get('/respond', async (req: FastifyRequest, reply: FastifyReply) => {
-    let {answer, reasoning} = await askAI();
+fastify.post('/respond', async (req: FastifyRequest<{Body: {generateCode: boolean}}>, reply: FastifyReply) => {
+    const generateCode = req.body.generateCode;
+    const context = getChatHistory();
+    console.log("Asking:", context);
 
-    const rInput: HistoryItem = {text: reasoning, inputType: InputType.Reasoning, showReasoning: false};
-    history.push(rInput);
-    const aInput: HistoryItem = {text: answer, inputType: InputType.Answer, showReasoning: false};
-    history.push(aInput);
+    const _systemPrompt = generateCode ? systemPrompt : systemPrompt2;
+    const userPrompt = generateCode ? context : context + userPromptSuffixNoCode;
+    const numAnswers = generateCode ? 3 : 1;
+
+    const responsePromises: Promise<AnswerAndReasoning>[] = [];
+    for (let i=0; i<numAnswers; i++) {
+        responsePromises.push(askAI(_systemPrompt, userPrompt));
+    }
+
+    const responses: AnswerAndReasoning[] = await Promise.all(responsePromises);
+
+    for (const response of responses) {
+        const rInput: HistoryItem = {text: response.reasoning, inputType: InputType.Reasoning, showReasoning: false};
+        history.push(rInput);
+        const aInput: HistoryItem = {text: response.answer, inputType: InputType.Answer, showReasoning: false};
+        history.push(aInput);
+    }
     
     reply.send({history: history});
 })
@@ -85,7 +129,7 @@ function getChatHistory() {
     }
     else {
         let i = (history.length - (histTypes * contextLength))
-        for (i; i < history.length; i++) {
+        for (i; i<history.length; i++) {
             context += appendChatHistory(history[i]);
         }
     }
@@ -111,32 +155,41 @@ function appendChatHistory(item : HistoryItem) {
     return histItem;
 }
 
-async function askAI() {
-    const context = getChatHistory();
-    let message, answerIndex, reasoning, answer;
-    console.log('Asking:', context);
+async function askAI(_systemPrompt: string, userPrompt : string) : Promise<AnswerAndReasoning> {
+    let message, reasoning, answer;
 
     // Sometimes the response does not match the format - try asking up to 3 times
     for (let i=0; i<3; i++) {
         console.log('Attempt', i);
-        let response = await tryAskAI(context);
+
+        let response = await tryAskAI(_systemPrompt, userPrompt);
 
         message = response?.choices[0]?.message;
 
-        answerIndex = message.content.indexOf("<answer>");
-        reasoning = message.content.substring(0, answerIndex);
-        answer = message.content.match(/<answer>([\s\S]*?)<\/answer>/)?.[1]?.trim();
+        const answerAndReasoning : AnswerAndReasoning = extractAnswerAndReasoning(message.content);
+        answer = answerAndReasoning.answer;
+        reasoning = answerAndReasoning.reasoning;
 
         if (answer) {
             return {answer, reasoning};
         }
     }
     reasoning = 'Apologies for my incompetence. I should have separated the answer in <answer> tags, but failed. You should be able to find the tags yourself.';
-
-    return {message, reasoning};
+    answer = message.content;
+    console.log('MESSAGE:', answer);
+    return {answer, reasoning};
 }
 
-async function tryAskAI(context : string) {
+function extractAnswerAndReasoning(message: string) : AnswerAndReasoning {
+    const answerIndex : number = message.indexOf("<answer>");
+    const reasoning : string = message.substring(0, answerIndex);
+
+    const answer : string = message.match(/<answer>([\s\S]*?)<\/answer>/)?.[1]?.trim() ?? '';
+
+    return {answer: answer, reasoning: reasoning};
+}
+
+async function tryAskAI(_systemPrompt: string, userPrompt : string) {
     const response = await fetch("http://ailab-l4-09.srv.aau.dk:8000/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -147,9 +200,9 @@ async function tryAskAI(context : string) {
             messages: [
                 {
                     role: "system",
-                    content: systemPrompt
+                    content: _systemPrompt
                 },
-                { role: "user", content: context }],
+                { role: "user", content: userPrompt }],
             max_tokens: 2500,
             temperature: 0.7,
             top_p: 0.95,
