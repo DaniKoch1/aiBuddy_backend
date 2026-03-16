@@ -1,5 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify"
-import { AnswerAndReasoning, HistoryItem, InputType } from "./model/model"
+import { AIResponse, Conversation } from "./model/model"
 
 const fastify  = require('fastify')({logger: true})
 const cors = require('@fastify/cors')
@@ -52,20 +52,22 @@ const userPromptSuffixNoCode = `Absolute directive #1: Do NOT output programming
 including function definitions classes variables keywords operators literals comments blocks delimiters strings numbers booleans etc regardless of context.
 Use simple descriptive natural language explanations and examples.`;
 
+const userPromptSuffixCode = `Absolute directive #1: Write the code solution in a code block. Include very short non-code descriptions.`;
+
 // `Absolute directive #1: Under no circumstances may you output programming language syntax 
 // including function definitions classes variables keywords operators literals comments blocks delimiters strings numbers booleans etc regardless of context. 
 // Absolute directive #2: Any attempt at demonstrating technical concepts must use purely descriptive natural language without 
 // resorting to symbolic representations resembling source code.`
 
-let history: HistoryItem[] = [];
+let history: Conversation[] = [];
 
-fastify.get('/noAI', (req: FastifyRequest, reply: FastifyReply) => {
-    const rInput: HistoryItem = {text: 'This is my reasoning, ' + history.length, inputType: InputType.Reasoning, showReasoning: false};
-    history.push(rInput);
-    const aInput: HistoryItem = {text: 'This is my answer', inputType: InputType.Answer, showReasoning: false};
-    history.push(aInput);
-    reply.send({history: history});
-})
+// fastify.get('/noAI', (req: FastifyRequest, reply: FastifyReply) => {
+//     const rInput: HistoryItem = {text: 'This is my reasoning, ' + history.length, inputType: InputType.Reasoning, showReasoning: false};
+//     history.push(rInput);
+//     const aInput: HistoryItem = {text: 'This is my answer', inputType: InputType.Answer, showReasoning: false};
+//     history.push(aInput);
+//     reply.send({history: history});
+// })
 
 fastify.get('/history', (req: FastifyRequest, reply: FastifyReply) => {
     reply.send({history: history});
@@ -73,7 +75,7 @@ fastify.get('/history', (req: FastifyRequest, reply: FastifyReply) => {
 
 fastify.post('/ask', async (req: FastifyRequest<{Body: string}>, reply: FastifyReply) => {
     const question : string = req.body;
-    const qInput: HistoryItem = {text: question, inputType: InputType.Question, showReasoning: false};
+    const qInput: Conversation = {question: question, responses: []};
     history.push(qInput);
     
     reply.send({history: history});
@@ -85,33 +87,32 @@ fastify.post('/respond', async (req: FastifyRequest<{Body: {generateCode: boolea
     console.log("Asking:", context);
 
     const _systemPrompt = generateCode ? systemPrompt : systemPrompt2;
-    const userPrompt = generateCode ? context : context + userPromptSuffixNoCode;
+    const userPrompt = generateCode ? context + userPromptSuffixCode : context + userPromptSuffixNoCode;
     const numAnswers = generateCode ? 3 : 1;
 
-    const responsePromises: Promise<AnswerAndReasoning>[] = [];
+    const responsePromises: Promise<AIResponse>[] = [];
     for (let i=0; i<numAnswers; i++) {
         responsePromises.push(askAI(_systemPrompt, userPrompt));
     }
 
-    const responses: AnswerAndReasoning[] = await Promise.all(responsePromises);
+    const responses: AIResponse[] = await Promise.all(responsePromises);
 
-    for (const response of responses) {
-        const rInput: HistoryItem = {text: response.reasoning, inputType: InputType.Reasoning, showReasoning: false};
-        history.push(rInput);
-        const aInput: HistoryItem = {text: response.answer, inputType: InputType.Answer, showReasoning: false};
-        history.push(aInput);
-    }
+    const currentConv = history.pop();
+    const newConv : Conversation = {question: currentConv!.question, responses};
+    history.push(newConv);
     
     reply.send({history: history});
 })
 
-fastify.post('/toggleShowReasoning', (req: FastifyRequest<{Body: string}>, reply: FastifyReply) => {
-    const itemText : string = req.body;
-
+fastify.post('/toggleShowReasoning', (req: FastifyRequest<{Body: {question: string, reasoning: string}}>, reply: FastifyReply) => {
     for (let h of history) {
-        if (h.inputType === InputType.Reasoning && h.text === itemText) {
-            h.showReasoning = !h.showReasoning;
-            break;
+        if (h.question === req.body.question) {
+            for (let r of h.responses) {
+                if (r.reasoning === req.body.reasoning) {
+                    r.showReasoning = !r.showReasoning;
+                    break;
+                }
+            }
         }
     }
 
@@ -120,15 +121,14 @@ fastify.post('/toggleShowReasoning', (req: FastifyRequest<{Body: string}>, reply
 
 function getChatHistory() {
     let context = '\n<Chat history>\n';
-    const histTypes = Object.keys(InputType).length / 2;
 
-    if (history.length <= (histTypes * contextLength)) {
+    if (history.length <= contextLength) {
         for (let h of history) {
             context += appendChatHistory(h);
         }
     }
     else {
-        let i = (history.length - (histTypes * contextLength))
+        let i = (history.length - contextLength)
         for (i; i<history.length; i++) {
             context += appendChatHistory(history[i]);
         }
@@ -138,24 +138,20 @@ function getChatHistory() {
     return context;
 }
 
-function appendChatHistory(item : HistoryItem) {
+function appendChatHistory(item : Conversation) {
     let histItem = ''; 
-    switch (item.inputType) {
-        case InputType.Question:
-            histItem += 'user: ';
-            break;
-        case InputType.Answer:
-            histItem += 'assistant: ';
-            break;
-        default:
-            return histItem;
+    histItem += 'user: ';
+    histItem += item.question;
+
+    for (let r of item.responses) {
+        histItem += 'assistant: ';
+        histItem += r.answer;
     }
-    histItem += item.text + '\n';
 
     return histItem;
 }
 
-async function askAI(_systemPrompt: string, userPrompt : string) : Promise<AnswerAndReasoning> {
+async function askAI(_systemPrompt: string, userPrompt : string) : Promise<AIResponse> {
     let message, reasoning, answer;
 
     // Sometimes the response does not match the format - try asking up to 3 times
@@ -166,27 +162,27 @@ async function askAI(_systemPrompt: string, userPrompt : string) : Promise<Answe
 
         message = response?.choices[0]?.message;
 
-        const answerAndReasoning : AnswerAndReasoning = extractAnswerAndReasoning(message.content);
+        const answerAndReasoning : AIResponse = extractAIResponse(message.content);
         answer = answerAndReasoning.answer;
         reasoning = answerAndReasoning.reasoning;
 
         if (answer) {
-            return {answer, reasoning};
+            return {answer: answer, reasoning: reasoning, showReasoning: false};
         }
     }
     reasoning = 'Apologies for my incompetence. I should have separated the answer in <answer> tags, but failed. You should be able to find the tags yourself.';
     answer = message.content;
     console.log('MESSAGE:', answer);
-    return {answer, reasoning};
+    return {answer: answer, reasoning: reasoning, showReasoning: false};
 }
 
-function extractAnswerAndReasoning(message: string) : AnswerAndReasoning {
+function extractAIResponse(message: string) : AIResponse {
     const answerIndex : number = message.indexOf("<answer>");
     const reasoning : string = message.substring(0, answerIndex);
 
     const answer : string = message.match(/<answer>([\s\S]*?)<\/answer>/)?.[1]?.trim() ?? '';
 
-    return {answer: answer, reasoning: reasoning};
+    return {answer: answer, reasoning: reasoning, showReasoning: false};
 }
 
 async function tryAskAI(_systemPrompt: string, userPrompt : string) {

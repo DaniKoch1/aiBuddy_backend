@@ -1,12 +1,10 @@
-export enum InputType {
-    Question = 0,
-    Answer,
-    Reasoning
+export type Conversation = {
+    question: string;
+    responses: AIResponse[];
 }
 
-export type HistoryItem = {text: string, inputType: InputType, showReasoning: Boolean}
-
-export type AnswerAndReasoning = {
+export type AIResponse = {
   answer: string;
   reasoning: string;
+  showReasoning: Boolean;
 };
