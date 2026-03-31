@@ -19,7 +19,7 @@ Rules:
 
 <answer>...your answer... </answer>.`;
 
-// const systemPromptCode = magistralPrompt + 'In the answer include a very short explanation and use code blocks for the code solution.';
+// const systemPromptCode = magistralPrompt + 'In the answer include a 2-4 sentence long explanation and use code blocks for the code solution.';
 
 export const systemPromptNoCode = magistralPrompt + ' Use headings, bullet points, and tables when helpful.';
 
@@ -29,7 +29,7 @@ Use simple descriptive natural language explanations and examples.`;
 
 export const userPromptSuffixCode = `Absolute directive #1: Write the code solution in a code block. 
 Your answer should be a simple code solution, based on the first one you think of.
-Include very short non-code descriptions. Do not include headings.`;
+Include include a 2-4 sentence long explanation. Do not include headings.`;
 
 export const socraticQuestionPrompt = ` Do NOT answer the user’s question.
 Instead, ask a guiding question that helps the user think toward the solution.
@@ -83,6 +83,6 @@ Use simple descriptive natural language explanations and examples.
 Do not refer to the user as "the user", but address them with "you".
 `;
 
-const userPrompt2 = `Absolute directive #2: Make absolutely sure that the code solution includes syntax errors.`;
-const userPrompt3 = `Absolute directive #2: Make absolutely sure that the code solution does not follow the clean code principles.`;
+const userPrompt2 = `Absolute directive #2: Make absolutely sure that the code solution includes syntax errors. Do NOT mention these errors in the answer.`;
+const userPrompt3 = `Absolute directive #2: Make absolutely sure that the code solution does not follow the clean code principles. Do NOT mention these errors in the answer.`;
 export const userPrompts = ['', userPrompt2, userPrompt3];

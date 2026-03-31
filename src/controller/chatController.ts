@@ -44,21 +44,21 @@ function appendChatContext(item : Conversation) {
 }
 
 export async function generateQuestionAnswer(_systemPrompt: string, userPrompt : string) : Promise<string> {
-    const response = await tryAskAI(_systemPrompt, userPrompt);
+    const response = await tryAskAI(_systemPrompt, userPrompt, 0.7);
 
     const message = response?.choices[0]?.message;
 
     return message.content;
 }
 
-export async function askAI(_systemPrompt: string, userPrompt : string) : Promise<AIResponse> {
+export async function askAI(_systemPrompt: string, userPrompt : string, temperature: number) : Promise<AIResponse> {
     let message, reasoning, answer;
 
     // Sometimes the response does not match the format - try asking up to 3 times
     for (let i=0; i<3; i++) {
         console.log('Attempt', i);
 
-        const response = await tryAskAI(_systemPrompt, userPrompt);
+        const response = await tryAskAI(_systemPrompt, userPrompt, temperature);
 
         message = response?.choices[0]?.message;
 
@@ -84,7 +84,7 @@ function extractAIResponse(message: string) : AIResponse {
     return {answer: answer, reasoning: reasoning, showReasoning: false};
 }
 
-async function tryAskAI(_systemPrompt: string, userPrompt : string) {
+async function tryAskAI(_systemPrompt: string, userPrompt : string, temperature: number) {
     const response = await fetch("http://ailab-l4-11.srv.aau.dk:8000/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -99,7 +99,7 @@ async function tryAskAI(_systemPrompt: string, userPrompt : string) {
                 },
                 { role: "user", content: userPrompt }],
             max_tokens: 5000,
-            temperature: 0.7,
+            temperature: temperature,
             top_p: 0.95,
         })
     })

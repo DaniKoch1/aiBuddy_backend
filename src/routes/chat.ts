@@ -26,11 +26,12 @@ export const routes: FastifyPluginAsync = async (fastify, opts) => {
         const _systemPrompt = generateCode ? magistralPrompt : systemPromptNoCode;
         let userPrompt = generateCode ? context + userPromptSuffixCode : context + userPromptSuffixNoCode;
         const numAnswers = generateCode ? 3 : 1;
+        const temperature = generateCode ? 1 : 0.7; //be more creative to generate various code responses, stick to the recommended 0.7 for text
 
         const responsePromises: Promise<AIResponse>[] = [];
         for (let i=0; i<numAnswers; i++) {
             userPrompt += userPrompts[i];
-            responsePromises.push(askAI(_systemPrompt, userPrompt));
+            responsePromises.push(askAI(_systemPrompt, userPrompt, temperature));
         }
 
         const responses: AIResponse[] = await Promise.all(responsePromises);

@@ -24,10 +24,10 @@ export const routes: FastifyPluginAsync = async (fastify, opts) => {
         console.log("Asking:", code);
 
         const userPrompt = "Review this code: " + code; 
-        const response: AIResponse = await askAI(magistralPrompt, userPrompt);
+        // const response: AIResponse = await askAI(magistralPrompt, userPrompt);
 
-        const currentConv = getReviewHistory()[getReviewHistory().length - 1];
-        currentConv.responses = [response];
+        // const currentConv = getReviewHistory()[getReviewHistory().length - 1];
+        // currentConv.responses = [response];
         
         reply.send({reviewHistory: getReviewHistory()});
     })
