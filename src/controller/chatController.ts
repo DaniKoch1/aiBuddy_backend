@@ -43,6 +43,14 @@ function appendChatContext(item : Conversation) {
     return histItem;
 }
 
+export async function generateQuestionAnswer(_systemPrompt: string, userPrompt : string) : Promise<string> {
+    const response = await tryAskAI(_systemPrompt, userPrompt);
+
+    const message = response?.choices[0]?.message;
+
+    return message.content;
+}
+
 export async function askAI(_systemPrompt: string, userPrompt : string) : Promise<AIResponse> {
     let message, reasoning, answer;
 
@@ -50,7 +58,7 @@ export async function askAI(_systemPrompt: string, userPrompt : string) : Promis
     for (let i=0; i<3; i++) {
         console.log('Attempt', i);
 
-        let response = await tryAskAI(_systemPrompt, userPrompt);
+        const response = await tryAskAI(_systemPrompt, userPrompt);
 
         message = response?.choices[0]?.message;
 
@@ -77,7 +85,7 @@ function extractAIResponse(message: string) : AIResponse {
 }
 
 async function tryAskAI(_systemPrompt: string, userPrompt : string) {
-    const response = await fetch("http://ailab-l4-06.srv.aau.dk:8000/v1/chat/completions", {
+    const response = await fetch("http://ailab-l4-11.srv.aau.dk:8000/v1/chat/completions", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"

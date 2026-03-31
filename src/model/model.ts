@@ -1,5 +1,6 @@
 export type Conversation = {
     question: string;
+    followUp?: FollowUp;
     responses: AIResponse[];
 }
 
@@ -8,3 +9,11 @@ export type AIResponse = {
   reasoning: string;
   showReasoning: Boolean;
 };
+
+export type FollowUp = {
+  lowQuestion?: string;
+  lowAnswer?: string;
+  highQuestion?: string;
+  highAnswer?: string;
+  feedback?: string;
+}

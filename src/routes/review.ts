@@ -1,8 +1,8 @@
 import { FastifyReply, FastifyRequest, FastifyPluginAsync } from "fastify"
 import { getReviewHistory, addToReviewHistory } from "../controller/reviewController"
-import { AIResponse, Conversation } from "../model/model"
-import { askAI } from "../controller/chatController"
-import { magistralPrompt } from "../model/prompts"
+import { AIResponse, Conversation, FollowUp } from "../model/model"
+import { askAI, generateQuestionAnswer } from "../controller/chatController"
+import { magistralPrompt, socraticQuestionPrompt } from "../model/prompts"
 import { toggleShowReasoning } from "../controller/helper"
 
 export const routes: FastifyPluginAsync = async (fastify, opts) => {
@@ -12,6 +12,7 @@ export const routes: FastifyPluginAsync = async (fastify, opts) => {
 
     fastify.post('/askCodeReview', async (req: FastifyRequest<{Body: string}>, reply: FastifyReply) => {
             const question : string = req.body;
+            
             const qInput: Conversation = {question: question, responses: []};
             addToReviewHistory(qInput);
             
@@ -25,9 +26,8 @@ export const routes: FastifyPluginAsync = async (fastify, opts) => {
         const userPrompt = "Review this code: " + code; 
         const response: AIResponse = await askAI(magistralPrompt, userPrompt);
 
-        const currentConv = getReviewHistory().pop();
-        const newConv : Conversation = {question: currentConv!.question, responses: [response]};
-        getReviewHistory().push(newConv);
+        const currentConv = getReviewHistory()[getReviewHistory().length - 1];
+        currentConv.responses = [response];
         
         reply.send({reviewHistory: getReviewHistory()});
     })
