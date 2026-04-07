@@ -15,7 +15,7 @@ const start = async () => {
         await fastify.register(chatRoutes);
         await fastify.register(reviewRoutes);
 
-        await fastify.listen({ port: PORT})
+        await fastify.listen({ port: PORT, host: "0.0.0.0"})
     } catch (error) {
         fastify.log.error(error)
         process.exit(1)

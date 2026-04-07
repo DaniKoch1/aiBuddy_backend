@@ -85,7 +85,7 @@ function extractAIResponse(message: string) : AIResponse {
 }
 
 async function tryAskAI(_systemPrompt: string, userPrompt : string, temperature: number) {
-    const response = await fetch("http://ailab-l4-11.srv.aau.dk:8000/v1/chat/completions", {
+    const response = await fetch("http://ailab-l4-03.srv.aau.dk:8000/v1/chat/completions", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
