@@ -7,6 +7,7 @@ const fastify  = require('fastify')({logger: true})
 const cors = require('@fastify/cors')
 
 const PORT = 5000;
+export const LLM_URL = process.env.LLM_URL;
 
 const start = async () => {
     try {

@@ -1,4 +1,5 @@
 import { AIResponse, Conversation } from "../model/model"
+import { LLM_URL } from "../server";
 
 let chatHistory: Conversation[] = [];
 const contextLength = 5;
@@ -85,7 +86,7 @@ function extractAIResponse(message: string) : AIResponse {
 }
 
 async function tryAskAI(_systemPrompt: string, userPrompt : string, temperature: number) {
-    const response = await fetch("http://ailab-l4-10.srv.aau.dk:8000/v1/chat/completions", {
+    const response = await fetch(LLM_URL + ":8000/v1/chat/completions", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
