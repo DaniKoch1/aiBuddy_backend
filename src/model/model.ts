@@ -17,3 +17,9 @@ export type FollowUp = {
   highAnswer?: string;
   feedback?: string;
 }
+
+export enum ChatMode {
+  Understand = "Understand",
+  Code = "Code",
+  CodeReview = "Code Review"
+}

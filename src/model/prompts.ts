@@ -86,3 +86,5 @@ Do not refer to the user as "the user", but address them with "you".
 const userPrompt2 = `Absolute directive #2: Make absolutely sure that the code solution includes syntax errors. Do NOT mention these errors in the answer.`;
 const userPrompt3 = `Absolute directive #2: Make absolutely sure that the code solution does not follow the clean code principles. Do NOT mention these errors in the answer.`;
 export const userPrompts = ['', userPrompt2, userPrompt3];
+
+export const codeReview = `Review this code: `

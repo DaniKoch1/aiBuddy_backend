@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest, FastifyPluginAsync } from "fastify"
-import { AIResponse, Conversation, FollowUp } from "../model/model"
+import { AIResponse, ChatMode, Conversation, FollowUp } from "../model/model"
 import { getChatHistory, getChatContext, askAI, addChatToHistory, generateQuestionAnswer } from "../controller/chatController"
-import { feedback, magistralPrompt, socraticQuestion1, socraticQuestion2, socraticQuestionPrompt, systemPromptNoCode, userPromptSuffixCode, userPromptSuffixNoCode, userPrompts } from "../model/prompts"
+import { codeReview, feedback, magistralPrompt, socraticQuestion1, socraticQuestion2, socraticQuestionPrompt, systemPromptNoCode, userPromptSuffixCode, userPromptSuffixNoCode, userPrompts } from "../model/prompts"
 import { toggleShowReasoning } from "../controller/helper"
 
 export const routes: FastifyPluginAsync = async (fastify, opts) => {
@@ -18,18 +18,39 @@ export const routes: FastifyPluginAsync = async (fastify, opts) => {
         reply.send({chatHistory: getChatHistory()});
     })
 
-    fastify.post('/respond', async (req: FastifyRequest<{Body: {generateCode: boolean}}>, reply: FastifyReply) => {
-        const generateCode = req.body.generateCode;
+    fastify.post('/respond', async (req: FastifyRequest<{Body: {chatMode: ChatMode}}>, reply: FastifyReply) => {
         const context = getChatContext();
         console.log("Asking:", context);
+        console.log('Respond: ', req.body.chatMode);
 
-        const _systemPrompt = generateCode ? magistralPrompt : systemPromptNoCode;
-        let userPrompt = generateCode ? context + userPromptSuffixCode : context + userPromptSuffixNoCode;
-        const numAnswers = generateCode ? 3 : 1;
-        const temperature = generateCode ? 1 : 0.7; //be more creative to generate various code responses, stick to the recommended 0.7 for text
+        let _systemPrompt : string;
+        let userPrompt : string;
+        let numAnswers : number;
+        let temperature : number;
+
+        switch (req.body.chatMode) {
+            case ChatMode.Understand:
+                _systemPrompt = systemPromptNoCode;
+                userPrompt = context + userPromptSuffixNoCode;
+                numAnswers = 1;
+                temperature = 0.7; //use the recommended value
+                break;
+            case ChatMode.Code:
+                _systemPrompt = magistralPrompt;
+                userPrompt = context + userPromptSuffixCode;
+                numAnswers = 3;
+                temperature = 1; //be more creative to generate various code responses
+                break;
+            case ChatMode.CodeReview:
+                _systemPrompt = magistralPrompt;
+                userPrompt = codeReview + getChatHistory()[getChatHistory().length - 1].question;
+                numAnswers = 1;
+                temperature = 0.7; //use the recommended value
+                break;
+        }
 
         const responsePromises: Promise<AIResponse>[] = [];
-        for (let i=0; i<numAnswers; i++) {
+        for (let i = 0; i < numAnswers; i++) {
             userPrompt += userPrompts[i];
             responsePromises.push(askAI(_systemPrompt, userPrompt, temperature));
         }
