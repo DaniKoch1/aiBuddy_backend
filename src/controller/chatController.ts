@@ -1,49 +1,6 @@
 import { AIResponse, Conversation } from "../model/model"
 import { LLM_URL } from "../server";
 
-let chatHistory: Conversation[] = [];
-const contextLength = 5;
-
-export function getChatHistory() : Conversation[] {
-    return chatHistory;
-}
-
-export function addChatToHistory(con : Conversation) : void {
-    chatHistory.push(con);
-}
-
-export function getChatContext() {
-    let context = '\n<Chat history>\n';
-
-    if (chatHistory.length <= contextLength) {
-        for (let h of chatHistory) {
-            context += appendChatContext(h);
-        }
-    }
-    else {
-        let i = (chatHistory.length - contextLength)
-        for (i; i<chatHistory.length; i++) {
-            context += appendChatContext(chatHistory[i]);
-        }
-    }
-    context += '</Chat history>\n';
-
-    return context;
-}
-
-function appendChatContext(item : Conversation) {
-    let histItem = ''; 
-    histItem += 'user: ';
-    histItem += item.question + '\n';
-
-    for (let r of item.responses) {
-        histItem += 'assistant: ';
-        histItem += r.answer + '\n';
-    }
-
-    return histItem;
-}
-
 export async function generateQuestionAnswer(_systemPrompt: string, userPrompt : string) : Promise<string> {
     const response = await tryAskAI(_systemPrompt, userPrompt, 0.7);
 

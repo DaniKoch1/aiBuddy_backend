@@ -1,5 +1,4 @@
 import {routes as chatRoutes} from './routes/chat'
-import {routes as reviewRoutes} from './routes/review'
 import path from "path";
 import fastifyStatic from "@fastify/static";
 
@@ -7,12 +6,13 @@ const fastify  = require('fastify')({logger: true})
 const cors = require('@fastify/cors')
 
 const PORT = 5000;
-export const LLM_URL = process.env.LLM_URL;
+export const LLM_URL = process.env.LLM_URL || "http://ailab-l4-04.srv.aau.dk";
+const testMode = true;
 
 const start = async () => {
     try {
         await fastify.register(cors, {
-            origin: /srv\.aau\.dk$/
+            origin : testMode ? true : /srv\.aau\.dk$/
         })
         
         await fastify.register(fastifyStatic, {
@@ -20,7 +20,6 @@ const start = async () => {
         });
 
         await fastify.register(chatRoutes);
-        await fastify.register(reviewRoutes);
 
         await fastify.listen({ port: PORT, host: "0.0.0.0"})
     } catch (error) {

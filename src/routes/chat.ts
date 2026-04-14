@@ -1,25 +1,13 @@
 import { FastifyReply, FastifyRequest, FastifyPluginAsync } from "fastify"
-import { AIResponse, ChatMode, Conversation, FollowUp } from "../model/model"
-import { getChatHistory, getChatContext, askAI, addChatToHistory, generateQuestionAnswer } from "../controller/chatController"
+import { AIResponse, ChatMode, FollowUp } from "../model/model"
+import { askAI, generateQuestionAnswer } from "../controller/chatController"
 import { codeReview, feedback, magistralPrompt, socraticQuestion1, socraticQuestion2, socraticQuestionPrompt, systemPromptNoCode, userPromptSuffixCode, userPromptSuffixNoCode, userPrompts } from "../model/prompts"
-import { toggleShowReasoning } from "../controller/helper"
+
 
 export const routes: FastifyPluginAsync = async (fastify, opts) => {
-    fastify.get('/chatHistory', (req: FastifyRequest, reply: FastifyReply) => {
-        reply.send({chatHistory: getChatHistory()});
-    })
 
-    fastify.post('/ask', async (req: FastifyRequest<{Body: string}>, reply: FastifyReply) => {
-        const question : string = req.body;
-
-        const qInput: Conversation = {question: question, responses: []};
-        addChatToHistory(qInput);
-        
-        reply.send({chatHistory: getChatHistory()});
-    })
-
-    fastify.post('/respond', async (req: FastifyRequest<{Body: {chatMode: ChatMode}}>, reply: FastifyReply) => {
-        const context = getChatContext();
+    fastify.post('/respond', async (req: FastifyRequest<{Body: {chatMode: ChatMode, chatContext: string}}>, reply: FastifyReply) => {
+        const context = req.body.chatContext;
         console.log("Asking:", context);
         console.log('Respond: ', req.body.chatMode);
 
@@ -43,7 +31,7 @@ export const routes: FastifyPluginAsync = async (fastify, opts) => {
                 break;
             case ChatMode.CodeReview:
                 _systemPrompt = magistralPrompt;
-                userPrompt = codeReview + getChatHistory()[getChatHistory().length - 1].question;
+                userPrompt = codeReview + context;
                 numAnswers = 1;
                 temperature = 0.7; //use the recommended value
                 break;
@@ -56,41 +44,29 @@ export const routes: FastifyPluginAsync = async (fastify, opts) => {
         }
 
         const responses: AIResponse[] = await Promise.all(responsePromises);
-
-        const currentConv = getChatHistory()[getChatHistory().length - 1];
-
-        currentConv.responses = responses;
         
-        reply.send({chatHistory: getChatHistory()});
+        reply.send({responses: responses});
     })
 
-    fastify.post('/converseSocratically', async (req: FastifyRequest<{Body: {followUp: FollowUp}}>, reply: FastifyReply) => {
-        const currentConv = getChatHistory()[getChatHistory().length - 1];
+    fastify.post('/converseSocratically', async (req: FastifyRequest<{Body: {chatContext: string, followUp: FollowUp}}>, reply: FastifyReply) => {
+        const chatContext = req.body.chatContext;
         const followUp = req.body.followUp;
-        currentConv.followUp = followUp;
 
         if (!followUp.lowQuestion) {
-            const lowQuestion : string = await generateQuestionAnswer(socraticQuestion1, getChatContext());
+            const lowQuestion : string = await generateQuestionAnswer(socraticQuestion1, chatContext);
             followUp.lowQuestion = lowQuestion;
         }
         else if (followUp.lowAnswer && !followUp.highQuestion) {
-            const userPromt = getChatContext() + '\nAssistant: ' + followUp.lowQuestion + '\nUser: ' + followUp.lowAnswer;
+            const userPromt = chatContext + '\nAssistant: ' + followUp.lowQuestion + '\nUser: ' + followUp.lowAnswer;
             const highQuestion : string = await generateQuestionAnswer(socraticQuestion2, userPromt);
             followUp.highQuestion = highQuestion;
         }
         else if (followUp.highAnswer) {
-            const userPromt = getChatContext() + '\nAssistant: ' + followUp.lowQuestion + '\nUser: ' + followUp.lowAnswer + '\nAssistant: ' + followUp.highQuestion + '\nUser: ' + followUp.highAnswer;
+            const userPromt = chatContext + '\nAssistant: ' + followUp.lowQuestion + '\nUser: ' + followUp.lowAnswer + '\nAssistant: ' + followUp.highQuestion + '\nUser: ' + followUp.highAnswer;
             const finalFeedback : string = await generateQuestionAnswer(feedback, userPromt);
             followUp.feedback = finalFeedback;
         }
         
-        currentConv.followUp = followUp;
-        reply.send({chatHistory: getChatHistory()});
-    })
-
-    fastify.post('/toggleShowChatReasoning', (req: FastifyRequest<{Body: {reasoning: string}}>, reply: FastifyReply) => {
-        toggleShowReasoning(getChatHistory(), req.body.reasoning);
-
-        reply.send({chatHistory: getChatHistory()});
+        reply.send({followUp: followUp});
     })
 }
