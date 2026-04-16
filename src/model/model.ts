@@ -1,13 +1,15 @@
 export type Conversation = {
-    question: string;
-    followUp?: FollowUp;
-    responses: AIResponse[];
+  mode: ChatMode;
+  question: string;
+  followUp?: FollowUp;
+  responses: AIResponse[];
 }
 
 export type AIResponse = {
   answer: string;
   reasoning: string;
-  showReasoning: Boolean;
+  showReasoning: boolean;
+  isCorrect: boolean;
 };
 
 export type FollowUp = {
