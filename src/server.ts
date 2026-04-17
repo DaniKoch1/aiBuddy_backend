@@ -5,7 +5,7 @@ import fastifyStatic from "@fastify/static";
 const fastify  = require('fastify')({logger: true})
 const cors = require('@fastify/cors')
 
-const PORT = 5000;
+const PORT = 8080;
 export const LLM_URL = process.env.LLM_URL || "http://ailab-l4-01.srv.aau.dk";
 
 const start = async () => {
