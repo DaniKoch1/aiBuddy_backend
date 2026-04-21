@@ -6,12 +6,13 @@ const fastify  = require('fastify')({logger: true})
 const cors = require('@fastify/cors')
 
 const PORT = 8080;
-export const LLM_URL = process.env.LLM_URL || "http://ailab-l4-01.srv.aau.dk";
+export const LLM_URL = process.env.LLM_URL || "http://ailab-l4-07.srv.aau.dk";
+const testMode = false;
 
 const start = async () => {
     try {
         await fastify.register(cors, {
-            origin : /srv\.aau\.dk$/
+            origin : testMode ? true : /srv\.aau\.dk$/
         })
         
         await fastify.register(fastifyStatic, {

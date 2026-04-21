@@ -32,10 +32,11 @@ export async function askAI(_systemPrompt: string, userPrompt : string, temperat
 }
 
 function extractAIResponse(message: string) : {answer: string, reasoning: string} {
-    const answerIndex : number = message.indexOf("<answer>");
+    const answerIndex : number = message.lastIndexOf("<answer>");
     const reasoning : string = message.substring(0, answerIndex);
-
-    const answer : string = message.match(/<answer>([\s\S]*?)<\/answer>/)?.[1]?.trim() ?? '';
+    
+    let answer : string = message.substring(answerIndex);
+    answer = answer.match(/<answer>([\s\S]*?)<\/answer>/)?.[1]?.trim() ?? '';
 
     return {answer: answer, reasoning: reasoning};
 }

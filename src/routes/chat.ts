@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest, FastifyPluginAsync } from "fastify"
 import { AIResponse, ChatMode, FollowUp } from "../model/model"
 import { askAI, generateQuestionAnswer } from "../controller/chatController"
-import { codeReview, codeReviewFeedback, codeReviewQuestion1, codeReviewQuestion2, feedback, magistralPrompt, socraticQuestion1, socraticQuestion2, socraticQuestionPrompt, systemPromptNoCode, userPromptSuffixCode, userPromptSuffixNoCode, userPrompts } from "../model/prompts"
+import { codeReview, codeReviewFeedback, codeReviewQuestion1, codeReviewQuestion2, feedback, magistralPrompt, socraticQuestion1, socraticQuestion2, userPromptSuffixCode, userPromptSuffixNoCode, userPrompts } from "../model/prompts"
 import { shuffleArray } from "../controller/helper"
 
 
@@ -11,7 +11,7 @@ export const routes: FastifyPluginAsync = async (fastify, opts) => {
     fastify.post('/askUnderstand', async (req: FastifyRequest<{Body: {chatContext: string}}>, reply: FastifyReply) => {
         const context = req.body.chatContext;
 
-        const _systemPrompt = systemPromptNoCode;
+        const _systemPrompt = magistralPrompt;
         const userPrompt = context + userPromptSuffixNoCode;
         const temperature = 0.7; //use the recommended value
 
