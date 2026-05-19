@@ -9,7 +9,7 @@ export type AIResponse = {
   answer: string;
   reasoning: string;
   showReasoning: boolean;
-  isCorrect: boolean;
+  isCorrect?: boolean;
 };
 
 export type FollowUp = {
